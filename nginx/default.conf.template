@@ -1,0 +1,23 @@
+upstream backend {
+    server app_${ACTIVE_POOL}:8080 max_fails=2 fail_timeout=5s;
+    server app_${INACTIVE_POOL}:8080 backup;
+}
+
+server {
+    listen 80;
+
+    location / {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_pass_request_headers on;
+    }
+
+    location /healthz {
+        proxy_pass http://backend/healthz;
+    }
+
+    location /version {
+        proxy_pass http://backend/version;
+    }
+}

@@ -1,0 +1,42 @@
+version: "3.8"
+
+services:
+  app_blue:
+    image: ${BLUE_IMAGE}
+    container_name: app_blue
+    environment:
+      - RELEASE_ID=${RELEASE_ID_BLUE}
+    ports:
+      - "${BLUE_PORT}:8080"
+    networks:
+      - bluegreen_net
+
+  app_green:
+    image: ${GREEN_IMAGE}
+    container_name: app_green
+    environment:
+      - RELEASE_ID=${RELEASE_ID_GREEN}
+    ports:
+      - "${GREEN_PORT}:8080"
+    networks:
+      - bluegreen_net
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx
+    ports:
+      - "80:80"
+    environment:
+      - ACTIVE_POOL=${ACTIVE_POOL}
+      - INACTIVE_POOL=${INACTIVE_POOL}
+    volumes:
+      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template
+    depends_on:
+      - app_blue
+      - app_green
+    networks:
+      - bluegreen_net
+
+networks:
+  bluegreen_net:
+    driver: bridge
