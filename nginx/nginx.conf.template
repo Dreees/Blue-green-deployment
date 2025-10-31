@@ -1,0 +1,53 @@
+log_format bluegreen '$remote_addr - $remote_user [$time_local] '
+                     '"$request" $status $body_bytes_sent '
+                     '"$http_referer" "$http_user_agent" '
+                     'pool=$upstream_http_x_app_pool '
+                     'release=$upstream_http_x_release_id '
+                     'upstream_status=$upstream_status '
+                     'upstream=$upstream_addr '
+                     'request_time=$request_time '
+                     'upstream_response_time=$upstream_response_time';
+
+upstream backend {
+    server app_${ACTIVE_POOL}:8080 max_fails=1 fail_timeout=3s;
+    server app_${INACTIVE_POOL}:8080 backup;
+}
+
+server {
+    listen 80;
+    
+    access_log /var/log/nginx/access.log bluegreen;
+    error_log /var/log/nginx/error.log warn;
+
+    location / {
+        proxy_pass http://backend;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        
+        proxy_next_upstream error timeout http_500 http_502 http_503 http_504;
+        proxy_next_upstream_tries 2;
+        
+        proxy_connect_timeout 2s;
+        proxy_send_timeout 3s;
+        proxy_read_timeout 3s;
+        
+        proxy_pass_request_headers on;
+    }
+
+    location /healthz {
+        proxy_pass http://backend/healthz;
+        access_log off;
+    }
+
+    location /version {
+        proxy_pass http://backend/version;
+        proxy_set_header Host $host;
+        proxy_next_upstream error timeout http_500 http_502 http_503 http_504;
+        proxy_next_upstream_tries 2;
+        proxy_connect_timeout 2s;
+        proxy_send_timeout 3s;
+        proxy_read_timeout 3s;
+    }
+}

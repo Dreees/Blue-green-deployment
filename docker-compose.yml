@@ -6,6 +6,7 @@ services:
     container_name: app_blue
     environment:
       - RELEASE_ID=${RELEASE_ID_BLUE}
+      - APP_POOL=blue
     ports:
       - "${BLUE_PORT}:8080"
     networks:
@@ -16,6 +17,7 @@ services:
     container_name: app_green
     environment:
       - RELEASE_ID=${RELEASE_ID_GREEN}
+      - APP_POOL=green
     ports:
       - "${GREEN_PORT}:8080"
     networks:
@@ -25,18 +27,48 @@ services:
     image: nginx:alpine
     container_name: nginx
     ports:
-       - "${NGINX_PORT}:80"
+      - "${NGINX_PORT}:80"
     environment:
       - ACTIVE_POOL=${ACTIVE_POOL}
       - INACTIVE_POOL=${INACTIVE_POOL}
     volumes:
-      - ./nginx/default.conf.template:/etc/nginx/templates/default.conf.template
+      - ./nginx/nginx.conf.template:/etc/nginx/templates/default.conf.template
+      - nginx_logs:/var/log/nginx
     depends_on:
       - app_blue
       - app_green
     networks:
       - bluegreen_net
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        rm -f /var/log/nginx/access.log /var/log/nginx/error.log
+        touch /var/log/nginx/access.log /var/log/nginx/error.log
+        chmod 666 /var/log/nginx/access.log /var/log/nginx/error.log
+        exec /docker-entrypoint.sh nginx -g 'daemon off;'
+
+  alert_watcher:
+    build:
+      context: ./watcher
+      dockerfile: Dockerfile
+    container_name: alert_watcher
+    environment:
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
+      - ERROR_RATE_THRESHOLD=${ERROR_RATE_THRESHOLD}
+      - WINDOW_SIZE=${WINDOW_SIZE}
+      - ALERT_COOLDOWN_SEC=${ALERT_COOLDOWN_SEC}
+    volumes:
+      - nginx_logs:/var/log/nginx:ro
+    depends_on:
+      - nginx
+    networks:
+      - bluegreen_net
+    restart: unless-stopped
 
 networks:
   bluegreen_net:
     driver: bridge
+
+volumes:
+  nginx_logs:

@@ -39,7 +39,28 @@ INACTIVE_POOL=blue
 docker compose up -d 
 ```
 
-### Stop and Clean Up
+## Chaos Testing & Failover Verification
+### Step 1: Induce Failure
+```
+curl -X POST http://localhost:8081/chaos/start?mode=error
+```
+### Step 2: Observe Failover
+```
+for i in {1..20}; do curl -s http://localhost:8080/version; sleep 0.5; done
+```
+### Step 3: View Logs
+```
+docker exec nginx tail -5 /var/log/nginx/access.log
+```
+### Step 4: Verify Slack Alerts
+#### Check your Slack channel for:
+- Failover Detected!
+- High Error Rate!
+
+## Stop and Clean Up
 ```
 docker compose down -v
 ```
+
+![Local Image](images/fail-over-ss.jpg)
+![Local Image](images/high-error-rate-ss.jpg)
