@@ -130,7 +130,7 @@ def process_log_line(line):
                 f"Window size: {WINDOW_SIZE} requests\n"
                 f"Current pool: `{pool}`\n"
                 f"Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"Action: Inspect upstream logs and consider toggling pools"
+                f"Action: Inspect logs and consider switching pools"
             )
             send_slack_alert(message, 'error_rate')
     else:
